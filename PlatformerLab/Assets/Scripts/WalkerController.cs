@@ -18,9 +18,12 @@ public class WalkerController : MonoBehaviour
     [SerializeField] private Transform groundCheck;
     [SerializeField] private float groundCheckRadius = 0.15f;
     [SerializeField] private LayerMask groundLayer;
+    [SerializeField] private float coyoteTime = 0.1f;
+    private float coyoteTimer;
 
     private InputAction jumpAction;
     private bool jumpRequested;
+    private bool jumpCutRequested;
     private bool isGrounded;
 
     void Awake()
@@ -37,7 +40,7 @@ public class WalkerController : MonoBehaviour
 
     void Update()
     {
-        
+
 
         moveInput = moveAction.ReadValue<Vector2>().x;
         if (moveInput != 0f)
@@ -45,11 +48,21 @@ public class WalkerController : MonoBehaviour
             spriteRenderer.flipX = moveInput > 0f;
         }
 
+        if (jumpAction.WasPressedThisFrame())
+        {
+            jumpRequested = true;
+        }
 
         if (jumpAction.WasPressedThisFrame())
         {
             jumpRequested = true;
         }
+
+        if (jumpAction.WasReleasedThisFrame())
+        {
+            jumpCutRequested = true;
+        }
+
 
     }
 
@@ -65,6 +78,7 @@ public class WalkerController : MonoBehaviour
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpVelocity);
         }
 
+
         jumpRequested = false;
     }
 
@@ -76,15 +90,33 @@ public class WalkerController : MonoBehaviour
         bool wasGrounded = isGrounded;
         isGrounded = Physics2D.OverlapCircle(
             groundCheck.position, groundCheckRadius, groundLayer) != null;
+        if (isGrounded) coyoteTimer = coyoteTime;
+        else coyoteTimer -= Time.fixedDeltaTime;
         if (isGrounded != wasGrounded) Debug.Log($"isGrounded -> {isGrounded}");
 
+
+        if (jumpRequested && coyoteTimer > 0f)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpVelocity);
+            coyoteTimer = 0f;   // a granted jump spends the whole window
+        }
 
         if (jumpRequested && isGrounded)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, jumpVelocity);
         }
 
+
+        if (jumpCutRequested && rb.linearVelocity.y > 0f)
+        {
+            rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * 0.5f);
+        }
+
         jumpRequested = false;
+        jumpCutRequested = false;
+
+        jumpRequested = false;
+
     }
 }
 
